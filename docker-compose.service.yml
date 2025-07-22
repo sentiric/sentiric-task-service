@@ -1,0 +1,14 @@
+
+services:
+  task-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-task-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentiric_task_service
+    env_file:
+      - ./.env
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+# ... (networks tanımı)

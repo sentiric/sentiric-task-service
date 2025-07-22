@@ -11,6 +11,7 @@
 **Technologies:**
 *   Python (e.g., Celery, FastAPI for task definition API) or Node.js (e.g., BullMQ).
 *   Message Broker client libraries.
+* we can use Celery + Redis
 
 **API Interactions (As an API Provider & Client/Consumer):**
 *   **As a Provider/Queue Consumer:** Receives tasks from various services (e.g., `sentiric-agent-service` for asynchronous AI operations, `sentiric-cdr-service` for batch reports).
