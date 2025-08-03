@@ -1,14 +1,31 @@
+networks:
+  sentiric-net:
+    name: ${NETWORK_NAME:-sentiric-net}
+    driver: bridge
 
 services:
-  task-service:
-    image: ${DOCKER_REGISTRY:-ghcr.io/sentiric}/sentiric-task-service:${TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: sentiric_task_service
-    env_file:
-      - ./.env
-    networks:
-      - sentiric-net
-    restart: unless-stopped
-# ... (networks tanımı)
+  task-service:       
+
+      build:
+        context: .
+        dockerfile: Dockerfile
+        args:
+          SERVICE_NAME: sentiric-task-service
+
+      env_file: 
+        - ./.env
+
+      # volumes:
+      #   - ../sentiric-infrastructure/tls/certs:/etc/sentiric/tls:ro
+
+      ports:
+        - "${TASK_SERVICE_PORT}:${TASK_SERVICE_PORT}"
+
+      networks:
+        - sentiric-net
+      
+      profiles:
+        - default
+        - ai
+
+      restart: always
