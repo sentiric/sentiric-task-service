@@ -1,12 +1,24 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 from celery.result import AsyncResult
-from typing import Any # <-- YENİ IMPORT
+from typing import Any
+from contextlib import asynccontextmanager # YENİ
+from prometheus_fastapi_instrumentator import Instrumentator # YENİ
+from app.core.logging import setup_logging # YENİ
 
 from app.core.celery_app import celery_app
 from app.tasks.example_tasks import long_running_task
 
-app = FastAPI(title="Sentiric Task Service")
+# YENİ: Lifespan ile başlangıçta loglamayı ayarlama
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    setup_logging()
+    yield
+
+app = FastAPI(title="Sentiric Task Service", lifespan=lifespan)
+
+# YENİ: Prometheus metriklerini ekle
+Instrumentator().instrument(app).expose(app)
 
 class TaskRequest(BaseModel):
     x: int
@@ -22,6 +34,22 @@ class TaskStatus(BaseModel):
     # YENİ: 'result' alanını daha esnek olan 'Any' tipiyle tanımlıyoruz.
     # Bu, Celery'den gelebilecek her türlü sonucu kabul etmemizi sağlar.
     result: Any | None = None
+
+
+
+# YENİ: Healthcheck endpoint'i
+@app.get("/health", tags=["Health"])
+def health_check():
+    try:
+        # Celery worker'larının en az birinin hayatta olup olmadığını kontrol et
+        i = celery_app.control.inspect()
+        stats = i.stats()
+        if not stats:
+            return {"status": "degraded", "detail": "No running workers found."}
+        return {"status": "ok", "workers_online": list(stats.keys())}
+    except Exception as e:
+        return {"status": "error", "detail": f"Cannot connect to broker: {str(e)}"}
+
 
 @app.post("/api/v1/tasks/long_task", response_model=TaskResponse, status_code=202)
 def run_long_task(request: TaskRequest):

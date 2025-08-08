@@ -4,7 +4,7 @@ Bu belge, çalışan `sentiric-task-service`'in yeteneklerini uçtan uca nasıl 
 
 ## Önkoşullar
 
-*   `docker compose` ile tüm servislerin (`task-service-api`, `task-service-worker`, `flower`) çalışır durumda olması.
+*   `docker compose` ile tüm servislerin (`task-service`, `task-service-worker`, `flower`) çalışır durumda olması.
 *   `curl` veya benzeri bir HTTP istemcisinin terminalinizde kurulu olması.
 
 ---

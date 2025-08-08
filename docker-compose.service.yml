@@ -1,6 +1,7 @@
 networks:
   sentiric-net:
-    # external: true
+    # Bu dosya tek başına çalıştırıldığında ağı oluşturur.
+    # Ana altyapı ile çalıştırıldığında, mevcut ağı kullanır.
     name: ${NETWORK_NAME:-sentiric-net}
 
 volumes:
@@ -8,11 +9,12 @@ volumes:
   redis-data:
 
 services:
-
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
+
     env_file:
-      - ./.env.docker
+      - ./.env.docker    
+
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/
     # ports:
@@ -20,15 +22,16 @@ services:
     #   - "15672:15672"
     networks:
       - sentiric-net
+
     profiles:
       - default
-      - data
-    restart: always
+      - data      
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -40,51 +43,62 @@ services:
       - sentiric-net
     volumes:
       - redis-data:/data
-    restart: always
+
+    restart: unless-stopped
+
     profiles:
       - default
       - data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   task-service:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: task-service-api
+    hostname: task-service-api
     env_file:
-      - ./.env.docker
+      - .env.docker # .env.docker kullanmak daha standart
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]
     ports:
-      - "${TASK_SERVICE_PORT}:${TASK_SERVICE_PORT}"
+      - "${TASK_SERVICE_PORT:-5003}:5003"
     networks:
       - sentiric-net
-
     restart: unless-stopped
-
     depends_on:
-      - rabbitmq
-      - redis    
+      rabbitmq:
+        condition: service_healthy # KRİTİK DEĞİŞİKLİK
+      redis:
+        condition: service_healthy # KRİTİK DEĞİŞİKLİK
 
   task-service-worker:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: task-service-worker
+    hostname: task-service-worker
     env_file:
-      - ./.env.docker
-    
-    user: "1000:1000"
-
+      - .env.docker
+    user: "sentiric_user"
     command: ["celery", "-A", "app.core.celery_app", "worker", "-l", "info"]
-    
     networks:
       - sentiric-net
-    
     restart: unless-stopped
-
     depends_on:
-          - rabbitmq
-          - redis
-        
+      rabbitmq:
+        condition: service_healthy # KRİTİK DEĞİŞİKLİK
+      redis:
+        condition: service_healthy # KRİTİK DEĞİŞİKLİK
+      
   flower:
     image: mher/flower
+    container_name: flower
+    hostname: flower
     environment:
       - CELERY_BROKER_URL=${RABBITMQ_URL}
       - FLOWER_PORT=5555
@@ -92,8 +106,6 @@ services:
       - "5555:5555"
     networks:
       - sentiric-net
-
     restart: unless-stopped
-
     depends_on:
-      - rabbitmq    
+      - task-service-worker
