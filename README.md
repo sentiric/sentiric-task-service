@@ -1,37 +1,60 @@
-# Sentiric Task Service
+# ⚙️ Sentiric Task Service
 
-**Description:** Manages and executes long-running, asynchronous, or scheduled tasks (e.g., batch processing, AI model training, report generation) within the Sentiric platform.
+[![Status](https://img.shields.io/badge/status-active-success.svg)]()
+[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![Framework](https://img.shields.io/badge/framework-Celery_&_FastAPI-blueviolet.svg)](https://docs.celeryq.dev/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Core Responsibilities:**
-*   Accepting and queuing task definitions.
-*   Distributing tasks to appropriate workers and monitoring their execution status.
-*   Providing features like automatic retries on failure, scheduling, and prioritization.
-*   Integrating with message brokers (e.g., RabbitMQ, Kafka) for task queuing.
+**Sentiric Task Service**, Sentiric platformunun asenkron "iş atıdır". Anlık yanıt gerektirmeyen, uzun süren veya periyodik olarak çalışması gereken tüm görevleri (örneğin: toplu rapor oluşturma, e-posta gönderme, veritabanı temizliği, AI modelinin yeniden eğitimi) arka planda güvenilir bir şekilde yönetir ve yürütür.
 
-**Technologies:**
-*   Python (e.g., Celery, FastAPI for task definition API) or Node.js (e.g., BullMQ).
-*   Message Broker client libraries.
-* we can use Celery + Redis
+Bu servis, platformun ana diyalog akışını bloke etmeden ağır işlerin yapılabilmesini sağlayarak, sistemin genel performansını ve yanıt verme hızını korur.
 
-**API Interactions (As an API Provider & Client/Consumer):**
-*   **As a Provider/Queue Consumer:** Receives tasks from various services (e.g., `sentiric-agent-service` for asynchronous AI operations, `sentiric-cdr-service` for batch reports).
-*   **As a Client/Queue Publisher:** Triggers tasks in other services or consumes results from them.
+## ✨ Temel Özellikler ve Mimari
 
-**Local Development:**
-1.  Clone this repository: `git clone https://github.com/sentiric/sentiric-task-service.git`
-2.  Navigate into the directory: `cd sentiric-task-service`
-3.  Install dependencies: `pip install -r requirements.txt` (Python) or `npm install` (Node.js).
-4.  Create a `.env` file from `.env.example` to configure message broker connections and task definitions.
-5.  Start the service: `python app.py` (or equivalent, potentially with a separate worker process).
+*   **Güçlü Görev Kuyruğu:** Python ekosisteminin endüstri standardı olan **Celery**'yi temel alır.
+*   **Dayanıklı Mesajlaşma:** Görevlerin güvenilir bir şekilde iletilmesi için **RabbitMQ**'yu mesaj broker'ı olarak kullanır.
+*   **Sonuç Depolama:** Tamamlanan görevlerin sonuçlarını ve durumlarını saklamak için **Redis**'i backend olarak kullanır.
+*   **Ayrık Ölçeklendirme:** Mimari, iki ana bileşenden oluşur:
+    1.  **API Sunucusu (`task-service-api`):** FastAPI ile yazılmış, diğer servislerden yeni görev taleplerini alan ve anında bir `task_id` ile yanıt dönen arayüz.
+    2.  **Worker (`task-service-worker`):** RabbitMQ'daki kuyruğu dinleyen ve asıl işi yapan, bağımsız olarak ölçeklendirilebilen arka plan işlemcisi.
+*   **Canlı İzleme:** **Flower** entegrasyonu sayesinde, çalışan görevleri, işçilerin durumunu ve görev geçmişini `http://localhost:5555` adresinden canlı olarak izleme imkanı sunar.
 
-**Configuration:**
-Refer to `config/` directory and `.env.example` for service-specific configurations, including message broker connection details, task schedules, and worker settings.
+## 🚀 Hızlı Başlangıç (Docker ile)
 
-**Deployment:**
-Designed for containerized deployment (e.g., Docker, Kubernetes), often deployed with separate worker instances for task execution. Refer to `sentiric-infrastructure`.
+Bu servis, `sentiric-infrastructure` reposundaki merkezi `docker-compose` ile platformun bir parçası olarak çalışmak üzere tasarlanmıştır. Tek başına çalıştırmak ve test etmek için:
 
-**Contributing:**
-We welcome contributions! Please refer to the [Sentiric Governance](https://github.com/sentiric/sentiric-governance) repository for coding standards and contribution guidelines.
+1.  **Altyapıyı Başlatın:** `task-service`, `rabbitmq` ve `redis` servislerine bağımlıdır. `sentiric-infrastructure` reposundan bu servisleri başlatın:
+    ```bash
+    docker compose up -d rabbitmq redis
+    ```
 
-**License:**
-This project is licensed under the [License](LICENSE).
+2.  **`.env` Dosyası Oluşturun:**
+    Proje için gerekli `RABBITMQ_URL` ve `REDIS_URL` gibi ortam değişkenlerini içeren bir `.env` dosyası oluşturun.
+
+3.  **Servisi Başlatın:**
+    ```bash
+    # `docker-compose.service.yml` dosyasının bulunduğu dizinde
+    docker compose -f docker-compose.service.yml up --build -d
+    ```
+    Loglarda `celery@... ready.` mesajını gördüğünüzde servis görevleri kabul etmeye hazırdır.
+
+## 🤖 API Kullanımı ve Demo
+
+Servisin API'ını test etmek ve uçtan uca bir görevin yaşam döngüsünü görmek için lütfen aşağıdaki rehberi inceleyin:
+
+➡️ **[API Kullanım ve Demo Rehberi (DEMO.md)](DEMO.md)**
+
+## 💻 Yerel Geliştirme ve Test
+
+1.  Python 3.11+ ve `pip` kurulu olduğundan emin olun.
+2.  Bir sanal ortam oluşturun ve aktif hale getirin.
+3.  Projeyi "düzenlenebilir modda" ve geliştirme bağımlılıklarıyla birlikte kurun:
+    ```bash
+    pip install -e ".[dev]"
+    ```
+4.  Testleri çalıştırın:
+    ```bash
+    pytest -v
+    ```
+
+---

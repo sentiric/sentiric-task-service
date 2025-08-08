@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentiric-task-service"
+version = "0.1.0"
+description = "Asynchronous task execution service for the Sentiric Platform using Celery."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic",
+    "pydantic-settings",
+    "python-dotenv",
+    "structlog",
+    "prometheus-fastapi-instrumentator",
+    
+    # Celery ve entegrasyonları
+    "celery[redis,rabbitmq]",
+    "flower" # Celery görevlerini izlemek için web arayüzü
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+    "httpx",
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
