@@ -24,37 +24,27 @@ curl -X POST "http://localhost:5003/api/v1/tasks/long_task" \
 ```
 
 **Başarılı Yanıt:**
-API, görevi kabul ettiğini ve arka planda çalışmaya başladığını belirtmek için size anında bir `task_id` dönecektir. Bu ID, görevinizi takip etmek için anahtarınızdır.
+API, görevi kabul ettiğini belirtmek için size anında bir `task_id` dönecektir.
 
 ```json
 {"task_id":"<size_benzersiz_task_id>","status":"PENDING"}
 ```
 
-### Adım 2: Görevin Durumunu İzleme (İki Yöntem)
+### Adım 2: Görevin Durumunu İzleme
 
 #### Yöntem A: Flower Web Arayüzü
 
 1.  Tarayıcınızı açın ve `http://localhost:5555` adresine gidin.
 2.  **"Tasks"** sekmesine tıklayın.
-3.  Az önce oluşturduğunuz görevi listede göreceksiniz. Durumunun önce **"Received"**, sonra **"Started"** ve 5 saniye sonra **"Succeeded"** olarak değiştiğini canlı olarak izleyebilirsiniz.
-
-![Flower Arayüzü](https://docs.celeryq.dev/en/stable/_images/flower-tasks.png)
+3.  Görevinizin durumunun **"Received"** -> **"Started"** -> **"Succeeded"** olarak değiştiğini canlı izleyebilirsiniz.
 
 #### Yöntem B: Worker Logları
 
-`docker compose -f docker-compose.service.yml logs -f task-service-worker` komutunu çalıştırdığınız terminalde aşağıdaki gibi loglar göreceksiniz:
-
-```
-# 1. Görevin alındığı an
-[INFO/MainProcess] Task app.tasks.example_tasks.long_running_task[...] received
-
-# 2. Görevin başarıyla tamamlandığı an (5 saniye sonra)
-[INFO/ForkPoolWorker-2] Task app.tasks.example_tasks.long_running_task[...] succeeded in 5.004s: 8
-```
+`make logs SERVICES="task-service-worker"` komutuyla worker loglarında görevin alındığını ve tamamlandığını görebilirsiniz.
 
 ### Adım 3: Görevin Sonucunu API'den Alma
 
-Görevin tamamlandığından emin olduktan sonra (yaklaşık 5-6 saniye sonra), Adım 1'de aldığınız `task_id`'yi kullanarak API'den nihai sonucu sorgulayabilirsiniz.
+Yaklaşık 5-6 saniye sonra, Adım 1'de aldığınız `task_id`'yi kullanarak API'den nihai sonucu sorgulayın.
 
 ```bash
 # <size_benzersiz_task_id> kısmını kendi ID'nizle değiştirin
@@ -67,5 +57,3 @@ API, görevin durumunun "SUCCESS" olduğunu ve sonucunun `8` olduğunu teyit ede
 ```json
 {"task_id":"<size_benzersiz_task_id>","status":"SUCCESS","result":8}
 ```
-
-Bu üç adımlı süreç, `sentiric-task-service`'in asenkron görevleri başarıyla kabul ettiğini, yürüttüğünü ve sonuçlarını güvenilir bir şekilde sunduğunu kanıtlar.
