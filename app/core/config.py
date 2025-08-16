@@ -10,26 +10,26 @@ class Settings(BaseSettings):
     ENV: str = "production"
     LOG_LEVEL: str = "INFO"
 
-    # Celery için zorunlu olanlar
+    # Temel bağlantı bilgileri
     RABBITMQ_URL: str
     REDIS_URL: str
-
-    # YENİ EKLENENLER: Platform Guardian görevinin ihtiyaç duyduğu değişkenler
     POSTGRES_URL: str
-    VECTOR_DB_HOST: str   # <-- YENİ
-    VECTOR_DB_PORT: int   # <-- YENİ
-    # YENİ: Yeni boolean ayarımızı ekliyoruz.
-    VECTOR_DB_USE_HTTPS: bool = False    
-    VECTOR_DB_URL: str
+    VECTOR_DB_HOST: str
+    VECTOR_DB_PORT: int
+    VECTOR_DB_URL: str # Bu artık sadece Qdrant istemcisi için kullanılmıyor, genel bir bilgi.
     QDRANT_API_KEY: Optional[str] = Field(None)
+    
+    # Ortama özel bayraklar
+    VECTOR_DB_USE_HTTPS: bool = False
+    REDIS_USE_SSL: bool = False # <-- YENİ AYAR
 
-    # Celery bu isimleri bekliyor, bu yüzden property olarak tanımlıyoruz
     @property
     def CELERY_BROKER_URL(self) -> str:
         return self.RABBITMQ_URL
 
     @property
     def CELERY_RESULT_BACKEND(self) -> str:
+        # Bu kısım doğru, Redis DB numarasını ekliyor.
         parsed_url = urlparse(self.REDIS_URL)
         if not parsed_url.path or parsed_url.path == '/':
             return f"{self.REDIS_URL.rstrip('/')}/0"

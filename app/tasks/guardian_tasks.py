@@ -28,17 +28,19 @@ def keep_services_alive():
     except Exception as e:
         logger.error("Platform Guardian: PostgreSQL (Neon) pinglenirken hata oluştu.", error=str(e))
 
-    # 2. Redis (Upstash) Ping
+    # 2. Redis (Upstash / Yerel) Ping
     try:
-        # DÜZELTME: `ssl_cert_reqs=None` parametresini kaldırıyoruz.
-        # redis-py'nin modern versiyonları, 'rediss://' şemasını gördüğünde
-        # SSL ayarlarını otomatik olarak yapar.
-        r = redis.from_url(settings.REDIS_URL)
-        r.ping()
-        logger.info("Platform Guardian: Redis (Upstash) başarıyla pinglendi.")
-    except Exception as e:
-        logger.error("Platform Guardian: Redis (Upstash) pinglenirken hata oluştu.", error=str(e))
+        # DÜZELTME: Artık SSL'i dinamik olarak kontrol ediyoruz.
+        if settings.REDIS_USE_SSL:
+            r = redis.from_url(settings.REDIS_URL)
+        else:
+            r = redis.from_url(settings.REDIS_URL) # from_url zaten `redis://` için doğru çalışır.
         
+        r.ping()
+        logger.info("Platform Guardian: Redis başarıyla pinglendi.", use_ssl=settings.REDIS_USE_SSL)
+    except Exception as e:
+        logger.error("Platform Guardian: Redis pinglenirken hata oluştu.", error=str(e))
+
     # 3. Qdrant Ping
     try:
         # DÜZELTME: Artık https parametresini konfigürasyondan dinamik olarak alıyoruz.
