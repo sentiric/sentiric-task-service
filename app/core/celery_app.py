@@ -13,9 +13,9 @@ celery_app = Celery(
 
 celery_app.conf.update(
     task_track_started=True,
-    # YENİ: Eğer REDIS_USE_SSL true ise, Celery'e SSL ayarlarını bildir.
-    redis_backend_use_ssl={'ssl_cert_reqs': None} if settings.REDIS_USE_SSL else None,
-    broker_use_ssl={'ssl_cert_reqs': None} if "amqps" in settings.RABBITMQ_URL else None,
+    # DÜZELTME: Bu satırları kaldırıyoruz çünkü artık config'de yönetiliyor.
+    # redis_backend_use_ssl={'ssl_cert_reqs': None} if settings.REDIS_USE_SSL else None,
+    # broker_use_ssl={'ssl_cert_reqs': None} if "amqps" in settings.RABBITMQ_URL else None,
 )
 
 celery_app.conf.beat_schedule = {
