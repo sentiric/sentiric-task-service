@@ -1,5 +1,3 @@
-# app/core/logging.py
-
 import logging
 import sys
 import structlog
@@ -29,7 +27,6 @@ def setup_logging():
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
@@ -37,14 +34,9 @@ def setup_logging():
     ]
 
     if env == "development":
-        processors = shared_processors + [
-            structlog.dev.ConsoleRenderer(colors=True),
-        ]
-    else: # production veya diğer
-        processors = shared_processors + [
-            structlog.processors.dict_tracebacks,
-            structlog.processors.JSONRenderer(),
-        ]
+        processors = shared_processors + [structlog.dev.ConsoleRenderer(colors=True)]
+    else:
+        processors = shared_processors + [structlog.processors.JSONRenderer()]
     
     structlog.configure(
         processors=processors,
@@ -53,5 +45,7 @@ def setup_logging():
         cache_logger_on_first_use=True,
     )
     _log_setup_done = True
-    logger = structlog.get_logger(__name__)
+    
+    # logger'ı burada oluşturup geri döndürmek yerine, sadece yapılandırmayı yapıyoruz.
+    logger = structlog.get_logger("sentiric_task_service")
     logger.info("Loglama başarıyla yapılandırıldı.", env=env, log_level=log_level)

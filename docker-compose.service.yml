@@ -5,10 +5,33 @@ networks:
     name: ${NETWORK_NAME:-sentiric-net}
 
 volumes:
+  postgres_data:
   rabbitmq_data:
   redis-data:
+  qdrant_data:
 
 services:
+
+  postgres:
+    image: postgres:16-alpine
+
+    env_file:
+      - ./.env.docker  
+
+    ports: ["5432:5432"]
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../sentiric-config/postgres-init:/docker-entrypoint-initdb.d
+
+    networks: [sentiric-net]
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
 
@@ -23,9 +46,7 @@ services:
     networks:
       - sentiric-net
 
-    profiles:
-      - default
-      - data      
+    
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
@@ -46,15 +67,19 @@ services:
 
     restart: unless-stopped
 
-    profiles:
-      - default
-      - data
-
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+
+    ports: ["${VECTOR_DB_PORT:-6333}:6333"]
+    volumes: [qdrant_data:/qdrant/storage]
+    networks: [sentiric-net]
+    restart: always      
 
   task-service:
     build:
@@ -94,6 +119,23 @@ services:
         condition: service_healthy # KRİTİK DEĞİŞİKLİK
       redis:
         condition: service_healthy # KRİTİK DEĞİŞİKLİK
+
+  task-service-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: task-service-beat
+    hostname: task-service-beat
+    env_file:
+      - .env.docker
+    user: "sentiric_user"
+    command: ["celery", "-A", "app.core.celery_app", "beat", "-l", "info"]
+    networks:
+      - sentiric-net
+    restart: unless-stopped
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
       
   flower:
     image: mher/flower
@@ -108,4 +150,8 @@ services:
       - sentiric-net
     restart: unless-stopped
     depends_on:
-      - task-service-worker
+      # DÜZELTME: Hem worker'ın başlamasını hem de RabbitMQ'nun sağlıklı olmasını bekle.
+      task-service-worker:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy

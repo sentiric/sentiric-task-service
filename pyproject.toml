@@ -19,7 +19,11 @@ dependencies = [
     
     # Celery ve entegrasyonları
     "celery[redis,rabbitmq]",
-    "flower" # Celery görevlerini izlemek için web arayüzü
+    "flower",
+    
+    # YENİ EKLENEN BAĞIMLILIKLAR (Platform Guardian için)
+    "psycopg2-binary",
+    "qdrant-client"
 ]
 
 [project.optional-dependencies]
