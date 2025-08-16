@@ -31,15 +31,6 @@ class Settings(BaseSettings):
         # DÜZELTME: REDIS_USE_SSL bayrağına göre URL'yi dinamik olarak zenginleştiriyoruz.
         base_url = self.REDIS_URL
         
-        # Eğer SSL kullanılıyorsa ve URL'de zaten parametre yoksa, ekle.
-        if self.REDIS_USE_SSL and "ssl_cert_reqs" not in base_url:
-            separator = "&" if "?" in base_url else "?"
-            base_url += f"{separator}ssl_cert_reqs={ssl.CERT_NONE}"
-
-        # Veritabanı numarasını ekle (eğer yoksa)
-        parsed_url = urlparse(base_url)
-        if not parsed_url.path or parsed_url.path == '/':
-            return f"{base_url.rstrip('/')}/0"
         return base_url
 
     model_config = SettingsConfigDict(
