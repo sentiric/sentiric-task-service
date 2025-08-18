@@ -1,8 +1,5 @@
 from celery import Celery
 from app.core.config import settings
-from app.core.logging import setup_logging
-
-setup_logging()
 
 celery_app = Celery(
     "tasks",
@@ -13,14 +10,14 @@ celery_app = Celery(
 
 celery_app.conf.update(
     task_track_started=True,
-    # DÜZELTME: Bu satırları kaldırıyoruz çünkü artık config'de yönetiliyor.
-    # redis_backend_use_ssl={'ssl_cert_reqs': None} if settings.REDIS_USE_SSL else None,
-    # broker_use_ssl={'ssl_cert_reqs': None} if "amqps" in settings.RABBITMQ_URL else None,
+    # YENİ: Dinamik olarak oluşturulan SSL opsiyonlarını ekle
+    broker_transport_options=settings.CELERY_BROKER_OPTIONS,
+    redis_backend_transport_options=settings.CELERY_REDIS_BACKEND_OPTIONS,
 )
 
 celery_app.conf.beat_schedule = {
-    'keep-services-alive-every-4-minutes': {
-        'task': 'app.tasks.guardian_tasks.keep_services_alive',
+    'platform-guardian-ping-services': {
+        'task': 'app.tasks.guardian_tasks.ping_external_services',
         'schedule': 240.0,
     },
 }
