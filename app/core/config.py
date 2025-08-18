@@ -1,8 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
-from urllib.parse import urlparse
 from typing import Optional
-import ssl # SSL modülünü import ediyoruz
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Sentiric Task Service"
@@ -13,14 +11,14 @@ class Settings(BaseSettings):
 
     RABBITMQ_URL: str
     REDIS_URL: str
-    POSTGRES_URL: str
-    VECTOR_DB_HOST: str
-    VECTOR_DB_PORT: int
-    VECTOR_DB_URL: str
-    QDRANT_API_KEY: Optional[str] = Field(None)
     
-    VECTOR_DB_USE_HTTPS: bool = False
-    REDIS_USE_SSL: bool = False
+    # --- YENİ EKLENEN ALANLAR ---
+    # Guardian görevinin ping'leyeceği servislerin URL'leri
+    LLM_SERVICE_URL: str
+    STT_SERVICE_URL: str
+    TTS_EDGE_SERVICE_URL: str
+    KNOWLEDGE_SERVICE_URL: str
+    # --- BİTTİ ---
 
     @property
     def CELERY_BROKER_URL(self) -> str:
@@ -28,10 +26,7 @@ class Settings(BaseSettings):
 
     @property
     def CELERY_RESULT_BACKEND(self) -> str:
-        # DÜZELTME: REDIS_USE_SSL bayrağına göre URL'yi dinamik olarak zenginleştiriyoruz.
-        base_url = self.REDIS_URL
-        
-        return base_url
+        return self.REDIS_URL
 
     model_config = SettingsConfigDict(
         env_file=".env", 
