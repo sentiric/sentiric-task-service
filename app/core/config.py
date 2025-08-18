@@ -26,21 +26,16 @@ class Settings(BaseSettings):
     def CELERY_RESULT_BACKEND(self) -> str:
         return self.REDIS_URL
 
-    # YENİ: SSL/TLS ayarlarını yönetecek property'ler
     @property
     def CELERY_BROKER_OPTIONS(self) -> Dict[str, Any]:
         if self.RABBITMQ_URL.startswith("amqps"):
-            return {
-                "ssl_cert_reqs": ssl.CERT_NONE,
-            }
+            return { "ssl_cert_reqs": ssl.CERT_NONE }
         return {}
         
     @property
     def CELERY_REDIS_BACKEND_OPTIONS(self) -> Dict[str, Any]:
         if self.REDIS_URL.startswith("rediss"):
-            return {
-                "ssl_cert_reqs": ssl.CERT_NONE,
-            }
+            return { "ssl_cert_reqs": ssl.CERT_NONE }
         return {}
 
     model_config = SettingsConfigDict(
