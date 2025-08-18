@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     ENV: str = "production"
     LOG_LEVEL: str = "INFO"
 
+    # Bu değişkenler doğrudan .env dosyasından okunacak
     RABBITMQ_URL: str
     REDIS_URL: str
     
@@ -20,22 +21,28 @@ class Settings(BaseSettings):
     
     @property
     def CELERY_BROKER_URL(self) -> str:
+        # Eğer URL "amqps" ile başlıyorsa, sonuna SSL seçeneğini ekle
+        if self.RABBITMQ_URL.startswith("amqps"):
+            # URL'de zaten query parametresi var mı kontrol et
+            separator = "&" if "?" in self.RABBITMQ_URL else "?"
+            return f"{self.RABBITMQ_URL}{separator}ssl_cert_reqs=CERT_NONE"
         return self.RABBITMQ_URL
 
     @property
     def CELERY_RESULT_BACKEND(self) -> str:
+        # Eğer URL "rediss" ile başlıyorsa, sonuna SSL seçeneğini ekle
+        if self.REDIS_URL.startswith("rediss"):
+            separator = "&" if "?" in self.REDIS_URL else "?"
+            return f"{self.REDIS_URL}{separator}ssl_cert_reqs=CERT_NONE"
         return self.REDIS_URL
 
+    # Bu property'ler artık gerekli değil ama silmek sorun yaratmaz
     @property
     def CELERY_BROKER_OPTIONS(self) -> Dict[str, Any]:
-        if self.RABBITMQ_URL.startswith("amqps"):
-            return { "ssl_cert_reqs": ssl.CERT_NONE }
         return {}
         
     @property
     def CELERY_REDIS_BACKEND_OPTIONS(self) -> Dict[str, Any]:
-        if self.REDIS_URL.startswith("rediss"):
-            return { "ssl_cert_reqs": ssl.CERT_NONE }
         return {}
 
     model_config = SettingsConfigDict(
