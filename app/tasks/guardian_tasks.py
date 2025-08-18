@@ -1,55 +1,48 @@
-import structlog # YENİ
+import httpx
+import asyncio
+import structlog
 from app.core.celery_app import celery_app
 from app.core.config import settings
-import psycopg2
-import redis
-from qdrant_client import QdrantClient
-from urllib.parse import urlparse
 
-# DÜZELTME: Logger'ı doğrudan structlog'dan alıyoruz.
 logger = structlog.get_logger(__name__)
 
-@celery_app.task(acks_late=True, name="app.tasks.guardian_tasks.keep_services_alive")
-def keep_services_alive():
-    """
-    Ücretsiz bulut servislerinin "uykuya dalmasını" veya "pasiflik nedeniyle silinmesini"
-    önlemek için periyodik olarak hepsine basit birer istek atar.
-    """
-    logger.info("Platform Guardian: Servisleri aktif tutma görevi başlatıldı.")
-    
-    # 1. PostgreSQL (Neon) Ping
-    try:
-        conn = psycopg2.connect(settings.POSTGRES_URL)
-        cur = conn.cursor()
-        cur.execute("SELECT 1;")
-        cur.close()
-        conn.close()
-        logger.info("Platform Guardian: PostgreSQL (Neon) başarıyla pinglendi.")
-    except Exception as e:
-        logger.error("Platform Guardian: PostgreSQL (Neon) pinglenirken hata oluştu.", error=str(e))
+# Uyanık tutulacak servislerin listesi
+# .env.generated dosyasından bu URL'ler gelecek.
+EXTERNAL_SERVICES = [
+    settings.LLM_SERVICE_URL,
+    settings.STT_SERVICE_URL,
+    settings.TTS_EDGE_SERVICE_URL,
+    settings.KNOWLEDGE_SERVICE_URL,
+]
 
-    # 2. Redis Ping
+async def ping_service(client: httpx.AsyncClient, service_name: str, url: str):
+    """Tek bir servisin /health endpoint'ine istek atar."""
     try:
-        # DÜZELTME: Artık config'den gelen zenginleştirilmiş URL'yi doğrudan kullanıyoruz.
-        # Bu, hem yerel hem de Upstash için çalışacaktır.
-        r = redis.from_url(settings.CELERY_RESULT_BACKEND)
-        r.ping()
-        logger.info("Platform Guardian: Redis başarıyla pinglendi.", use_ssl=settings.REDIS_USE_SSL)
-    except Exception as e:
-        logger.error("Platform Guardian: Redis pinglenirken hata oluştu.", error=str(e))
-        
-    # 3. Qdrant Ping
-    try:
-        # DÜZELTME: Artık https parametresini konfigürasyondan dinamik olarak alıyoruz.
-        client = QdrantClient(
-            host=settings.VECTOR_DB_HOST,
-            port=settings.VECTOR_DB_PORT,
-            api_key=settings.QDRANT_API_KEY,
-            https=settings.VECTOR_DB_USE_HTTPS # <-- Burası kritik!
-        )
-        client.get_collections()
-        logger.info("Platform Guardian: Qdrant başarıyla pinglendi.", use_https=settings.VECTOR_DB_USE_HTTPS)
-    except Exception as e:
-        logger.error("Platform Guardian: Qdrant pinglenirken hata oluştu.", error=str(e))
-        
-    return "All free-tier services have been pinged."
+        health_url = f"{url.rstrip('/')}/health"
+        response = await client.get(health_url, timeout=30.0)
+        if response.status_code == 200:
+            logger.info("Platform Guardian: Servis başarıyla pinglendi.", service=service_name, status="ok")
+        else:
+            logger.warning("Platform Guardian: Servis uyarı durumu döndürdü.", service=service_name, status_code=response.status_code)
+    except httpx.RequestError as e:
+        logger.error("Platform Guardian: Servise ulaşılamadı.", service=service_name, error=str(e))
+
+async def ping_all_services():
+    """Tüm harici servisleri asenkron olarak pingler."""
+    async with httpx.AsyncClient() as client:
+        tasks = []
+        for url in EXTERNAL_SERVICES:
+            # URL'den servis adını çıkarmak için basit bir mantık
+            service_name = url.split('.')[0].split('//')[-1]
+            tasks.append(ping_service(client, service_name, url))
+        await asyncio.gather(*tasks)
+
+@celery_app.task(name="app.tasks.guardian_tasks.ping_external_services")
+def ping_external_services():
+    """
+    Ücretsiz bulut servislerinin uykuya dalmasını önlemek için periyodik olarak
+    hepsine birer /health isteği atar.
+    """
+    logger.info("Platform Guardian: Harici servisleri aktif tutma görevi başlatıldı.")
+    asyncio.run(ping_all_services())
+    return "All external services have been pinged."

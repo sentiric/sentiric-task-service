@@ -16,14 +16,10 @@ dependencies = [
     "python-dotenv",
     "structlog",
     "prometheus-fastapi-instrumentator",
-    
-    # Celery ve entegrasyonları
     "celery[redis,rabbitmq]",
     "flower",
-    
-    # YENİ EKLENEN BAĞIMLILIKLAR (Platform Guardian için)
-    "psycopg2-binary",
-    "qdrant-client"
+    # YENİ: Periyodik görevlerin diğer servislere istek atabilmesi için
+    "httpx"
 ]
 
 [project.optional-dependencies]
