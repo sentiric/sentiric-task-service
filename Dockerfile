@@ -24,8 +24,12 @@ FROM python:3.11-slim-bullseye
 
 WORKDIR /app
 
-# Çalışma zamanı için gerekli paketler
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Sadece healthcheck için netcat, curl ve SSL için ca-certificates gerekli.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    netcat-openbsd \
+    curl \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 # Root olmayan kullanıcı oluştur
 RUN useradd -m -u 1001 sentiric_user
