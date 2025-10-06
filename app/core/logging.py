@@ -1,3 +1,4 @@
+# sentiric-task-service/app/core/logging.py
 import logging
 import sys
 import structlog
@@ -16,10 +17,6 @@ def setup_logging():
 
     log_level = settings.LOG_LEVEL.upper()
     env = settings.ENV.lower()
-    
-    # Celery'nin kendi log yapılandırmasını devralmasını engelle
-    from celery.utils.log import get_task_logger
-    get_task_logger(__name__).propagate = True
     
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=log_level)
 
@@ -46,6 +43,5 @@ def setup_logging():
     )
     _log_setup_done = True
     
-    # logger'ı burada oluşturup geri döndürmek yerine, sadece yapılandırmayı yapıyoruz.
     logger = structlog.get_logger("sentiric_task_service")
     logger.info("Loglama başarıyla yapılandırıldı.", env=env, log_level=log_level)

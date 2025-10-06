@@ -1,26 +1,33 @@
+# sentiric-task-service/app/core/celery_app.py
 from celery import Celery
 from app.core.config import settings
 
-# --- KRİTİK DÜZELTME BURADA ---
-# SSL ayarlarını doğrudan Celery uygulamasını oluştururken parametre olarak veriyoruz.
-# Bu, ayarların en erken ve en doğru zamanda yüklenmesini garanti eder.
+# Celery uygulamasını Broker ve Backend URL'leri ile oluştur
 celery_app = Celery(
     "tasks",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["app.tasks.example_tasks", "app.tasks.guardian_tasks"],
-    broker_transport_options=settings.CELERY_BROKER_OPTIONS,
-    result_backend_transport_options=settings.CELERY_REDIS_BACKEND_OPTIONS
+    # Hangi task modüllerini otomatik olarak yükleyeceğini belirt
+    include=["app.tasks.example_tasks", "app.tasks.guardian_tasks"] 
 )
 
-# Diğer ayarları .conf.update ile yapmaya devam edebiliriz.
+# Celery Ayarları
 celery_app.conf.update(
-    task_track_started=True,
+    task_track_started=True, # Görevlerin STARTED durumunu raporlamasını sağlar
+    broker_connection_retry_on_startup=True,
+    broker_transport_options={
+        'max_retries': 10,
+        'interval_start': 0,
+        'interval_step': 0.5,
+        'interval_max': 5
+    }
 )
 
+# Celery Beat (Zamanlanmış Görevler) Ayarları
 celery_app.conf.beat_schedule = {
     'platform-guardian-ping-services': {
         'task': 'app.tasks.guardian_tasks.ping_external_services',
-        'schedule': 240.0,
+        # Her 4 dakikada bir (240 saniye) çalıştır (Bulut servislerinin uyumasını engellemek için)
+        'schedule': 240.0, 
     },
 }

@@ -1,24 +1,29 @@
-from fastapi import FastAPI
+# sentiric-task-service/app/main.py
+from fastapi import FastAPI, status
 from pydantic import BaseModel
 from celery.result import AsyncResult
 from typing import Any
-from contextlib import asynccontextmanager # YENİ
-from prometheus_fastapi_instrumentator import Instrumentator # YENİ
-from app.core.logging import setup_logging # YENİ
+from contextlib import asynccontextmanager 
+from prometheus_fastapi_instrumentator import Instrumentator 
+from app.core.logging import setup_logging 
 
 from app.core.celery_app import celery_app
 from app.tasks.example_tasks import long_running_task
+import structlog
 
-# YENİ: Lifespan ile başlangıçta loglamayı ayarlama
+logger = structlog.get_logger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
+    logger.info("Task Service API başlatılıyor")
+    
+    # Prometheus metriklerini ekle
+    Instrumentator().instrument(app).expose(app)
+    
     yield
 
-app = FastAPI(title="Sentiric Task Service", lifespan=lifespan)
-
-# YENİ: Prometheus metriklerini ekle
-Instrumentator().instrument(app).expose(app)
+app = FastAPI(title="Sentiric Task Service API", lifespan=lifespan)
 
 class TaskRequest(BaseModel):
     x: int
@@ -31,24 +36,25 @@ class TaskResponse(BaseModel):
 class TaskStatus(BaseModel):
     task_id: str
     status: str
-    # YENİ: 'result' alanını daha esnek olan 'Any' tipiyle tanımlıyoruz.
-    # Bu, Celery'den gelebilecek her türlü sonucu kabul etmemizi sağlar.
     result: Any | None = None
 
 
-
-# YENİ: Healthcheck endpoint'i
+# --- Healthcheck endpoint'i (Broker ve Worker durumu dahil) ---
 @app.get("/health", tags=["Health"])
 def health_check():
     try:
-        # Celery worker'larının en az birinin hayatta olup olmadığını kontrol et
         i = celery_app.control.inspect()
         stats = i.stats()
+        
+        # Eğer stats boşsa (Celery broker'a bağlanamıyordur veya worker yok)
         if not stats:
-            return {"status": "degraded", "detail": "No running workers found."}
+            logger.warning("Celery: Worker istatistikleri alınamadı.")
+            return {"status": "degraded", "detail": "No running workers or cannot connect to broker."}
+        
         return {"status": "ok", "workers_online": list(stats.keys())}
     except Exception as e:
-        return {"status": "error", "detail": f"Cannot connect to broker: {str(e)}"}
+        logger.error("Celery broker bağlantı hatası", error=str(e))
+        return {"status": "error", "detail": f"Cannot connect to Celery broker: {str(e)}"}
 
 
 @app.post("/api/v1/tasks/long_task", response_model=TaskResponse, status_code=202)
@@ -65,19 +71,10 @@ def get_task_status(task_id: str):
 
     if task_result.ready():
         if task_result.successful():
-            result = task_result.get() # .result yerine .get() kullanmak daha güvenlidir.
+            result = task_result.get()
         else:
-            # Hata durumunda, hatayı string olarak alalım.
-            try:
-                # task_result.get() hata fırlatabilir, bunu yakalayalım.
-                result = str(task_result.get(propagate=False))
-            except Exception as e:
-                result = f"Görevin sonucunu alırken hata oluştu: {str(e)}"
-    
-    # --- KRİTİK DÜZELTME ---
-    # Eğer görev henüz hazır değilse, sonucu None olarak bırak.
-    # Bu, "Internal Server Error" hatasını önler.
-    if task_result.status == 'PENDING':
-        result = "Task is still running."
+            result = str(task_result.info) # Hata durumunda hata bilgisini al
+    elif task_result.status == 'PENDING':
+        result = "Task is still queued or running."
 
     return {"task_id": task_id, "status": task_result.status, "result": result}

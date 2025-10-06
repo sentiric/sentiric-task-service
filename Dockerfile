@@ -1,30 +1,30 @@
 # --- STAGE 1: Builder ---
 FROM python:3.11-slim-bullseye AS builder
 
+# Poetry kurulumu
+RUN pip install poetry
+
+# Build argümanlarını tanımla
+ARG GIT_COMMIT="unknown"
+ARG BUILD_DATE="unknown"
+ARG SERVICE_VERSION="0.0.0"
+
 WORKDIR /app
 
-ENV PIP_BREAK_SYSTEM_PACKAGES=1 \
-    PIP_NO_CACHE_DIR=1
-    
-# Gerekli sistem bağımlılıkları
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
-
-# Proje tanımını kopyala
-COPY pyproject.toml .
-
-# Uygulama kodunu kopyala
+# Proje dosyalarını kopyala
+COPY pyproject.toml poetry.lock ./
 COPY app ./app
 COPY README.md .
 
-# Bağımlılıklar dahil projeyi kur
-RUN pip install .
+# Bağımlılıkları kur
+RUN poetry install --no-root --no-dev
 
 # --- STAGE 2: Production ---
 FROM python:3.11-slim-bullseye
 
 WORKDIR /app
 
-# Sadece healthcheck için netcat, curl ve SSL için ca-certificates gerekli.
+# Gerekli sistem bağımlılıkları
 RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat-openbsd \
     curl \
@@ -34,22 +34,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Root olmayan kullanıcı oluştur
 RUN useradd -m -u 1001 sentiric_user
 
-# Builder'dan sadece kurulu Python kütüphanelerini ve komutları kopyala
+# Builder'dan sanal ortam bağımlılıklarını kopyala
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Uygulama kodunu kopyala
-COPY ./app ./app
+COPY --from=builder /app/app ./app
 
 # Dosya sahipliğini yeni kullanıcıya ver
 RUN chown -R sentiric_user:sentiric_user /app
 
-# Kullanıcıyı değiştir
+# YENİ: Build argümanlarını environment değişkenlerine ata
+ARG GIT_COMMIT
+ARG BUILD_DATE
+ARG SERVICE_VERSION
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV BUILD_DATE=${BUILD_DATE}
+ENV SERVICE_VERSION=${SERVICE_VERSION}
+
 USER sentiric_user
 
-# FastAPI sunucusu için portu aç
 EXPOSE 5003
 
-# Varsayılan komut API sunucusunu başlatmak olsun.
-# Worker için `docker-compose.dev.yml`'de 'command' ile override edeceğiz.
+# Varsayılan CMD: API sunucusunu başlatmak
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003"]

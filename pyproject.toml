@@ -1,37 +1,34 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "sentiric-task-service"
 version = "0.1.0"
 description = "Asynchronous task execution service for the Sentiric Platform using Celery."
+authors = ["Sentiric Team"]
+license = "Apache-2.0"
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "pydantic",
-    "pydantic-settings",
-    "python-dotenv",
-    "structlog",
-    "prometheus-fastapi-instrumentator",
-    "celery[redis,rabbitmq]",
-    "flower",
-    # YENİ: Periyodik görevlerin diğer servislere istek atabilmesi için
-    "httpx"
-]
 
-[project.optional-dependencies]
-dev = [
-    "pytest",
-    "pytest-cov",
-    "pytest-asyncio",
-    "httpx",
-]
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.111.0"
+uvicorn = {extras = ["standard"], version = "^0.30.1"}
+pydantic = "^2.7.3"
+pydantic-settings = "^2.3.4"
+python-dotenv = "^1.0.1"
+structlog = "^24.2.0"
+# Prometheus entegrasyonu (FastAPI için)
+prometheus-fastapi-instrumentator = "^7.0.0" 
+# Celery çekirdek bağımlılıkları (Redis ve RabbitMQ broker/backend)
+celery = {extras = ["redis", "rabbitmq"], version = "^5.4.0"}
+# Periyodik görevlerin diğer servislere istek atabilmesi için
+httpx = "^0.27.0" 
 
-[tool.setuptools]
-packages = ["app"]
+# Protobuf stubs (Eğer gRPC task istekleri alınacaksa, ancak REST API kullanılıyor)
+sentiric-contracts = { git = "https://github.com/sentiric/sentiric-contracts.git", tag = "v1.9.0" }
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+pytest-cov = "^5.0.0"
+pytest-asyncio = "^0.23.6"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
