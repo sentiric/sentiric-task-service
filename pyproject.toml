@@ -22,7 +22,7 @@ celery = {extras = ["redis", "rabbitmq"], version = "^5.4.0"}
 httpx = "^0.27.0" 
 
 # Protobuf stubs (Eğer gRPC task istekleri alınacaksa, ancak REST API kullanılıyor)
-sentiric-contracts = { git = "https://github.com/sentiric/sentiric-contracts.git", tag = "v1.9.0" }
+sentiric-contracts-py = { git = "https://github.com/sentiric/sentiric-contracts.git", tag = "v1.9.0" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
