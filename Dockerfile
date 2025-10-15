@@ -54,4 +54,4 @@ USER sentiric_user
 EXPOSE 5003
 
 # Varsayılan CMD: API sunucusunu başlatmak
-CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003", "--log-config", "null"]
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5003", "--no-access-log"]
